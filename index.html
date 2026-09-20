@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LaTeX to AoPS converter</title>
+<style>
+:root {
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  --bg: #eef2f6;
+  --panel: #ffffff;
+  --ink: #17212b;
+  --muted: #5a6877;
+  --line: #cfd8e1;
+  --accent: #1f5fbf;
+  --accent-ink: #ffffff;
+  --code-bg: #f7f9fb;
+  --ok: #1b7a43;
+  --red: #c0272d;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #10161d;
+    --panel: #18212b;
+    --ink: #e6ecf2;
+    --muted: #93a1b0;
+    --line: #2b3746;
+    --accent: #6ea8fe;
+    --accent-ink: #0b1622;
+    --code-bg: #121a23;
+    --ok: #5fd08a;
+    --red: #ff6b70;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #10161d;
+  --panel: #18212b;
+  --ink: #e6ecf2;
+  --muted: #93a1b0;
+  --line: #2b3746;
+  --accent: #6ea8fe;
+  --accent-ink: #0b1622;
+  --code-bg: #121a23;
+  --ok: #5fd08a;
+  --red: #ff6b70;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+}
+main { max-width: 1120px; margin: 0 auto; padding: 28px 18px 48px; }
+h1 { font-size: 1.6rem; margin: 0 0 4px; letter-spacing: -0.01em; }
+.sub { margin: 0 0 22px; color: var(--muted); max-width: 62ch; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 800px) { .grid { grid-template-columns: 1fr; } }
+.pane {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.pane-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 12px; border-bottom: 1px solid var(--line);
+}
+.pane-head h2 { font-size: 0.95rem; margin: 0; font-weight: 600; }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; }
+button {
+  font: inherit; font-size: 0.85rem;
+  padding: 6px 12px; border-radius: 6px;
+  border: 1px solid var(--line); background: var(--panel); color: var(--ink);
+  cursor: pointer;
+}
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+button:focus-visible, textarea:focus-visible, input:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+textarea {
+  width: 100%; min-height: 380px; resize: vertical;
+  border: 0; border-radius: 0 0 8px 8px;
+  padding: 12px; margin: 0;
+  background: var(--code-bg); color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85rem; line-height: 1.55;
+  tab-size: 2;
+}
+.status { min-height: 1.4em; padding: 8px 12px; font-size: 0.82rem; color: var(--muted); border-top: 1px solid var(--line); }
+.status.ok { color: var(--ok); }
+details {
+  margin-top: 16px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+}
+summary { cursor: pointer; padding: 12px; font-weight: 600; font-size: 0.95rem; }
+.rules { padding: 0 12px 12px; }
+.rule-row {
+  display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr); gap: 10px;
+  align-items: center; padding: 6px 0; border-top: 1px solid var(--line);
+}
+.rule-row:first-of-type { border-top: 0; }
+.rule-row code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; color: var(--muted); overflow-wrap: anywhere; }
+.rule-row input[type="text"], .cmd-input {
+  width: 100%; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.85rem;
+  padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px;
+  background: var(--code-bg); color: var(--ink);
+}
+.opts { padding: 4px 12px 14px; display: grid; gap: 8px; }
+.opts label { font-size: 0.9rem; display: flex; gap: 8px; align-items: center; }
+.opts .cmd-label { display: grid; gap: 4px; font-size: 0.85rem; color: var(--muted); }
+.note { font-size: 0.82rem; color: var(--muted); padding: 0 12px 12px; margin: 0; }
+.preview { margin-top: 16px; }
+.preview .body { padding: 14px; font-size: 0.95rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.preview .red { color: var(--red); }
+.preview .asy { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; display: block; margin: 6px 0; }
+</style>
+</head>
+<body>
+<main>
+  <h1>LaTeX to AoPS</h1>
+  <p class="sub">Paste a proof from your .tex file. The converter swaps claim, proof, remark and asy environments for AoPS BBCode as you type, and strips layout commands like \newpage.</p>
+
+  <div class="grid">
+    <section class="pane" aria-labelledby="in-h">
+      <div class="pane-head">
+        <h2 id="in-h">LaTeX input</h2>
+        <div class="actions">
+          <button type="button" id="sample">Load example</button>
+          <button type="button" id="clear">Clear</button>
+        </div>
+      </div>
+      <textarea id="input" spellcheck="false" placeholder="Paste your LaTeX here..."></textarea>
+    </section>
+
+    <section class="pane" aria-labelledby="out-h">
+      <div class="pane-head">
+        <h2 id="out-h">AoPS output</h2>
+        <div class="actions">
+          <button type="button" class="primary" id="copy">Copy output</button>
+        </div>
+      </div>
+      <textarea id="output" spellcheck="false" readonly placeholder="Converted text appears here."></textarea>
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+    </section>
+  </div>
+
+  <details open>
+    <summary>Replacement rules</summary>
+    <div class="rules" id="rules"></div>
+    <p class="note">Edit any replacement to change what it becomes. Leave a field empty to just remove the tag. The text after \begin{claim} and \begin{remark} is moved onto the same line as the label. Everything between asy tags is left exactly as written.</p>
+    <div class="opts">
+      <label><input type="checkbox" id="opt-clean" checked> Remove layout commands such as <code>\newpage</code> and <code>\vspace{...}</code></label>
+      <label class="cmd-label" for="cmds">Commands to remove (comma separated, without the backslash; \vspace and \hspace are always removed with their argument)
+        <input type="text" id="cmds" class="cmd-input" spellcheck="false" value="newpage, clearpage, pagebreak, bigskip, medskip, smallskip, noindent, vfill, hfill, centering">
+      </label>
+      <label><input type="checkbox" id="opt-text"> Also convert <code>\textbf</code> to [b] and <code>\textit</code> / <code>\emph</code> to [i]</label>
+      <label><input type="checkbox" id="opt-list"> Also convert <code>itemize</code> / <code>enumerate</code> to [list]</label>
+    </div>
+  </details>
+
+  <section class="pane preview" aria-labelledby="pv-h">
+    <div class="pane-head"><h2 id="pv-h">Preview of the BBCode structure</h2></div>
+    <div class="body" id="preview"></div>
+  </section>
+</main>
+
+<script>
+(function () {
+  var DEFAULTS = [
+    { key: 'claim',    label: '\\begin{claim}',   value: '[b][color=red]Claim:[/color][/b]' },
+    { key: 'claimEnd', label: '\\end{claim}',     value: '' },
+    { key: 'proof',    label: '\\begin{proof}',   value: '[i]Proof:[/i]' },
+    { key: 'proofEnd', label: '\\end{proof}',     value: '$\\blacksquare$' },
+    { key: 'asyOpen',  label: '\\begin{center} \\begin{asy}', value: '[asy]' },
+    { key: 'asyClose', label: '\\end{asy} \\end{center}',     value: '[/asy]' },
+    { key: 'remark',   label: '\\begin{remark}',  value: '[color=red]Remark:[/color]' },
+    { key: 'remarkEnd',label: '\\end{remark}',    value: '' }
+  ];
+
+  var SAMPLE = String.raw`\newpage
+\begin{claim}
+Let $n$ be a positive integer. Then $n^2 + n$ is even.
+\end{claim}
+\vspace{2mm}
+\begin{proof}
+\noindent Note that $n^2 + n = n(n+1)$. Among two consecutive integers exactly one is even, so the product is even.
+\end{proof}
+
+\begin{remark}
+The same argument shows $n(n+1)(n+2)$ is divisible by $6$.
+\end{remark}
+\bigskip
+
+\begin{center}
+\begin{asy}
+import olympiad;
+pair A = (0,0), B = (4,0), C = (1,3);
+draw(A--B--C--cycle);
+dot("$A$", A, SW); dot("$B$", B, SE); dot("$C$", C, N);
+\end{asy}
+\end{center}
+\clearpage`;
+
+  var rules = {};
+  DEFAULTS.forEach(function (r) { rules[r.key] = r.value; });
+
+  var $in = document.getElementById('input');
+  var $out = document.getElementById('output');
+  var $status = document.getElementById('status');
+  var $preview = document.getElementById('preview');
+  var $rules = document.getElementById('rules');
+  var $optText = document.getElementById('opt-text');
+  var $optList = document.getElementById('opt-list');
+  var $optClean = document.getElementById('opt-clean');
+  var $cmds = document.getElementById('cmds');
+
+  DEFAULTS.forEach(function (r) {
+    var row = document.createElement('div');
+    row.className = 'rule-row';
+    var code = document.createElement('code');
+    code.textContent = r.label;
+    var inp = document.createElement('input');
+    inp.type = 'text';
+    inp.value = r.value;
+    inp.setAttribute('aria-label', 'Replacement for ' + r.label);
+    inp.spellcheck = false;
+    inp.addEventListener('input', function () { rules[r.key] = inp.value; run(); });
+    row.appendChild(code);
+    row.appendChild(inp);
+    $rules.appendChild(row);
+  });
+
+  // Remove layout commands (\newpage, \vspace{..}, ...) from text outside asy blocks.
+  function stripLayout(s) {
+    var names = $cmds.value.split(/[\s,]+/).map(function (n) {
+      return n.replace(/[^a-zA-Z]/g, '');
+    }).filter(Boolean);
+
+    var alts = [];
+    if (names.length) {
+      alts.push('\\\\(?:' + names.join('|') + ')\\*?(?![a-zA-Z])(?:\\[\\d\\])?[ \\t]*');
+    }
+    alts.push('\\\\[vh]space\\*?\\s*\\{[^{}]*\\}[ \\t]*');
+
+    var anyRe = new RegExp(alts.join('|'), 'g');
+    var lineRe = new RegExp('^[ \\t]*(?:' + alts.join('|') + ')+(?:\\r?\\n|$)', 'gm');
+
+    var found = s.match(anyRe);
+    var count = found ? found.length : 0;
+    if (!count) return { text: s, count: 0 };
+
+    s = s.replace(lineRe, '');   // lines that contain only these commands
+    s = s.replace(anyRe, '');    // the same commands in the middle of text
+    s = s.replace(/\n{3,}/g, '\n\n');
+    return { text: s, count: count };
+  }
+
+  function convert(src) {
+    var counts = { claim: 0, proof: 0, remark: 0, asy: 0, layout: 0 };
+    var blocks = [];
+
+    // 1. Protect asy blocks (with optional center wrapper) so nothing inside changes.
+    var asyRe = /\\begin\{center\}\s*\\begin\{asy\}[\s\S]*?\\end\{asy\}\s*\\end\{center\}|\\begin\{asy\}[\s\S]*?\\end\{asy\}/g;
+    var s = src.replace(asyRe, function (m) {
+      var inner = m.replace(/^\\begin\{center\}\s*/, '').replace(/\s*\\end\{center\}$/, '');
+      inner = inner.replace(/^\\begin\{asy\}/, function () { return rules.asyOpen; });
+      inner = inner.replace(/\\end\{asy\}$/, function () { return rules.asyClose; });
+      blocks.push(inner);
+      counts.asy++;
+      return '\u0000ASY' + (blocks.length - 1) + '\u0000';
+    });
+
+    // 2. Remove layout commands.
+    if ($optClean.checked) {
+      var cleaned = stripLayout(s);
+      s = cleaned.text;
+      counts.layout = cleaned.count;
+    }
+
+    // 3. Environments.
+    // inline = true: the text after \begin{...} is pulled onto the same line as the label.
+    function begin(name, key, inline) {
+      var pattern = '\\\\begin\\{' + name + '\\*?\\}' + (inline ? '\\s*' : '');
+      s = s.replace(new RegExp(pattern, 'g'), function () {
+        counts[key]++;
+        if (inline && rules[key] !== '') return rules[key] + ' ';
+        return rules[key];
+      });
+    }
+    function end(name, val) {
+      if (val === '') {
+        // Remove the tag and the line break that followed it.
+        s = s.replace(new RegExp('[ \\t]*\\\\end\\{' + name + '\\*?\\}[ \\t]*\\n?', 'g'), '');
+      } else {
+        s = s.replace(new RegExp('\\\\end\\{' + name + '\\*?\\}', 'g'), function () { return val; });
+      }
+    }
+    begin('claim', 'claim', true);    end('claim', rules.claimEnd);
+    begin('proof', 'proof', false);   end('proof', rules.proofEnd);
+    begin('remark', 'remark', true);  end('remark', rules.remarkEnd);
+
+    // 4. Optional extras.
+    if ($optText.checked) {
+      s = s.replace(/\\textbf\{([^{}]*)\}/g, '[b]$1[/b]');
+      s = s.replace(/\\(?:textit|emph)\{([^{}]*)\}/g, '[i]$1[/i]');
+    }
+    if ($optList.checked) {
+      s = s.replace(/\\begin\{(?:itemize|enumerate)\}/g, '[list]');
+      s = s.replace(/\\end\{(?:itemize|enumerate)\}/g, '[/list]');
+      s = s.replace(/\\item\s*/g, '[*]');
+    }
+
+    // 5. Restore asy blocks.
+    s = s.replace(/\u0000ASY(\d+)\u0000/g, function (_, i) { return blocks[+i]; });
+
+    return { text: s.replace(/^\s+|\s+$/g, ''), counts: counts };
+  }
+
+  function esc(t) {
+    return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  function renderPreview(text) {
+    // Lightweight structural preview: colors and italics/bold, asy blocks shown as code.
+    var parts = text.split(/(\[asy\][\s\S]*?\[\/asy\])/);
+    var html = parts.map(function (p) {
+      if (/^\[asy\]/.test(p)) return '<code class="asy">' + esc(p) + '</code>';
+      var h = esc(p);
+      h = h.replace(/\[color=red\]([\s\S]*?)\[\/color\]/g, '<span class="red">$1</span>');
+      h = h.replace(/\[b\]([\s\S]*?)\[\/b\]/g, '<b>$1</b>');
+      h = h.replace(/\[i\]([\s\S]*?)\[\/i\]/g, '<i>$1</i>');
+      return h;
+    }).join('');
+    $preview.innerHTML = html || '<span style="color:var(--muted)">Nothing to preview yet.</span>';
+  }
+
+  function plural(n, w) { return n + ' ' + w + (n === 1 ? '' : 's'); }
+
+  function run() {
+    var res = convert($in.value);
+    $out.value = res.text;
+    renderPreview(res.text);
+    var c = res.counts;
+    var total = c.claim + c.proof + c.remark + c.asy + c.layout;
+    if (!$in.value.trim()) {
+      $status.textContent = '';
+      $status.className = 'status';
+    } else if (total === 0) {
+      $status.textContent = 'Nothing to convert or remove was found.';
+      $status.className = 'status';
+    } else {
+      var bits = [];
+      if (c.claim) bits.push(plural(c.claim, 'claim'));
+      if (c.proof) bits.push(plural(c.proof, 'proof'));
+      if (c.remark) bits.push(plural(c.remark, 'remark'));
+      if (c.asy) bits.push(plural(c.asy, 'asy block'));
+      var msg = bits.length ? 'Converted ' + bits.join(', ') : '';
+      if (c.layout) msg += (msg ? '. ' : '') + 'Removed ' + plural(c.layout, 'layout command');
+      $status.textContent = msg + '.';
+      $status.className = 'status ok';
+    }
+  }
+
+  $in.addEventListener('input', run);
+  $optText.addEventListener('change', run);
+  $optList.addEventListener('change', run);
+  $optClean.addEventListener('change', run);
+  $cmds.addEventListener('input', run);
+
+  document.getElementById('sample').addEventListener('click', function () {
+    $in.value = SAMPLE; run();
+  });
+  document.getElementById('clear').addEventListener('click', function () {
+    $in.value = ''; run(); $in.focus();
+  });
+  document.getElementById('copy').addEventListener('click', function () {
+    var text = $out.value;
+    if (!text) { $status.textContent = 'Nothing to copy yet.'; $status.className = 'status'; return; }
+    function done() { $status.textContent = 'Copied to clipboard.'; $status.className = 'status ok'; }
+    function fallback() {
+      $out.focus(); $out.select();
+      try { document.execCommand('copy'); done(); }
+      catch (e) { $status.textContent = 'Copy failed. Select the output and copy it manually.'; $status.className = 'status'; }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else { fallback(); }
+  });
+
+  run();
+})();
+</script>
+</body>
+</html>
