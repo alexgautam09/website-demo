@@ -119,13 +119,16 @@ summary { cursor: pointer; padding: 12px; font-weight: 600; font-size: 0.95rem; 
 .preview { margin-top: 16px; }
 .preview .body { padding: 14px; font-size: 0.95rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .preview .red { color: var(--red); }
+.preview .green { color: #1b7a43; }
+.preview .blue { color: #1f5fbf; }
+.preview .orange { color: #c96a10; }
 .preview .asy { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.8rem; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px; display: block; margin: 6px 0; }
 </style>
 </head>
 <body>
 <main>
   <h1>LaTeX to AoPS</h1>
-  <p class="sub">Paste a proof from your .tex file. The converter swaps claim, proof, remark, asy and itemize environments for AoPS BBCode as you type, and strips layout commands like \newpage.</p>
+  <p class="sub">Paste a proof from your .tex file. The converter swaps claim, proof, remark, motivation, idea, asy and itemize environments for AoPS BBCode as you type, and strips layout commands like \newpage.</p>
 
   <div class="grid">
     <section class="pane" aria-labelledby="in-h">
@@ -154,7 +157,7 @@ summary { cursor: pointer; padding: 12px; font-weight: 600; font-size: 0.95rem; 
   <details open>
     <summary>Replacement rules</summary>
     <div class="rules" id="rules"></div>
-    <p class="note">Edit any replacement to change what it becomes. Leave a field empty to just remove the tag. Starred versions (claim*, proof*, remark*) are treated the same as the plain ones. The text after \begin{claim} and \begin{remark} is moved onto the same line as the label, and the ∎ is placed at the end of the last line of the proof. Everything between asy tags is left exactly as written.</p>
+    <p class="note">Edit any replacement to change what it becomes. Leave a field empty to just remove the tag. Starred versions (claim*, proof*, remark*, motivation*, idea*) are treated the same as the plain ones. The dashed line is placed above each claim and below its proof's ∎ — if two claims are back to back, the two dashed lines are merged into one so you never get a doubled line. A trailing <code>\\</code> line break at the end of a line is dropped since AoPS keeps plain line breaks anyway. Everything between asy tags is left exactly as written.</p>
     <div class="opts">
       <label><input type="checkbox" id="opt-list" checked> Convert <code>itemize</code> / <code>enumerate</code> and <code>\item</code> to [list] / [*] / [/list]</label>
       <label><input type="checkbox" id="opt-clean" checked> Remove layout commands such as <code>\newpage</code> and <code>\vspace{...}</code></label>
@@ -174,27 +177,46 @@ summary { cursor: pointer; padding: 12px; font-weight: 600; font-size: 0.95rem; 
 <script>
 (function () {
   var DEFAULTS = [
-    { key: 'claim',    label: '\\begin{claim}',   value: '[b][color=red]Claim:[/color][/b]' },
-    { key: 'claimEnd', label: '\\end{claim}',     value: '' },
-    { key: 'proof',    label: '\\begin{proof}',   value: '[i]Proof:[/i]' },
+    { key: 'sepLine',  label: 'dashed line (above claim & below \u220e)', value: '----------------------------------------------------------------' },
+    { key: 'claim',    label: '\\begin{claim}',        value: '[b][color=red]Claim:[/color][/b]' },
+    { key: 'claimEnd', label: '\\end{claim}',          value: '' },
+    { key: 'proof',    label: '\\begin{proof}',        value: '[i]Proof:[/i]' },
     { key: 'proofEnd', label: '\\end{proof} (same line as last text)', value: '$\\blacksquare$' },
-    { key: 'proofSep', label: 'line added after the ∎ (new line)', value: '-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------' },
     { key: 'asyOpen',  label: '\\begin{center} \\begin{asy}', value: '[asy]' },
     { key: 'asyClose', label: '\\end{asy} \\end{center}',     value: '[/asy]' },
-    { key: 'remark',   label: '\\begin{remark}',  value: '[color=red]Remark:[/color]' },
-    { key: 'remarkEnd',label: '\\end{remark}',    value: '' }
+    { key: 'remark',   label: '\\begin{remark}',       value: '[color=orange]Remark:[/color]' },
+    { key: 'remarkEnd',label: '\\end{remark}',         value: '' },
+    { key: 'motivation',    label: '\\begin{motivation}', value: '[color=green]Motivation:[/color]' },
+    { key: 'motivationEnd', label: '\\end{motivation}',   value: '' },
+    { key: 'idea',     label: '\\begin{idea}',         value: '[color=blue]Idea:[/color]' },
+    { key: 'ideaEnd',  label: '\\end{idea}',           value: '' }
   ];
 
   var SAMPLE = String.raw`\newpage
+\begin{motivation}
+  The first part is just angle chasing.\\
+  The second part is motivated by using the fact that midpoints and diagonal of trapezium concur.\\
+
+\end{motivation}
+
 \begin{claim*}
 Let $n$ be a positive integer. Then $n^2 + n$ is even.
 \end{claim*}
 \vspace{2mm}
 \begin{proof*}
 \noindent Note that $n^2 + n = n(n+1)$. Among two consecutive integers exactly one is even, so the product is even.
-Therefore, there exists a unique choice of $d_{k-1} \in \{1,3,5,7,9\}$ satisfying
-$2^{k-1}d_{k-1} \equiv -q \pmod{5}$.
 \end{proof*}
+
+\begin{claim}
+$D$, $Y$, $X$ are collinear.
+\end{claim}
+\begin{proof}
+This follows from the inversion above.
+\end{proof}
+
+\begin{idea}
+Invert at $A$ with radius $\sqrt{AB \cdot AC}$.
+\end{idea}
 
 \begin{remark}
 The same argument shows $n(n+1)(n+2)$ is divisible by $6$.
@@ -205,7 +227,6 @@ Under the inversion:
 \begin{itemize}
   \item $(ABC) \leftrightarrow B_0C_0$
   \item $D$ maps to the center of $(ABC)$
-  \item $Y$ maps to the intersection of the $A$-tangent and $B_0C_0$
 \end{itemize}
 
 \begin{center}
@@ -213,7 +234,6 @@ Under the inversion:
 import olympiad;
 pair A = (0,0), B = (4,0), C = (1,3);
 draw(A--B--C--cycle);
-dot("$A$", A, SW); dot("$B$", B, SE); dot("$C$", C, N);
 \end{asy}
 \end{center}
 \clearpage`;
@@ -247,6 +267,8 @@ dot("$A$", A, SW); dot("$B$", B, SE); dot("$C$", C, N);
     $rules.appendChild(row);
   });
 
+  function escapeRegExp(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
   // Remove layout commands (\newpage, \vspace{..}, ...) from text outside asy blocks.
   function stripLayout(s) {
     var names = $cmds.value.split(/[\s,]+/).map(function (n) {
@@ -273,7 +295,7 @@ dot("$A$", A, SW); dot("$B$", B, SE); dot("$C$", C, N);
   }
 
   function convert(src) {
-    var counts = { claim: 0, proof: 0, remark: 0, asy: 0, list: 0, layout: 0 };
+    var counts = { claim: 0, proof: 0, remark: 0, motivation: 0, idea: 0, asy: 0, list: 0, layout: 0 };
     var blocks = [];
 
     // 1. Protect asy blocks (with optional center wrapper) so nothing inside changes.
@@ -287,52 +309,73 @@ dot("$A$", A, SW); dot("$B$", B, SE); dot("$C$", C, N);
       return '\u0000ASY' + (blocks.length - 1) + '\u0000';
     });
 
-    // 2. Treat claim*, proof*, remark* exactly like claim, proof, remark.
+    // 2. Treat starred claim/proof/remark/motivation/idea exactly like the plain ones.
     //    (Other starred environments such as align* are left alone.)
-    s = s.replace(/\\(begin|end)\{(claim|proof|remark)\*\}/g, function (_, be, name) {
+    s = s.replace(/\\(begin|end)\{(claim|proof|remark|motivation|idea)\*\}/g, function (_, be, name) {
       return '\\' + be + '{' + name + '}';
     });
 
-    // 3. Remove layout commands.
+    // 3. Drop a trailing LaTeX line break ("\\") at the end of a line -- AoPS
+    //    already keeps plain newlines as line breaks, so it's redundant.
+    s = s.replace(/[ \t]*\\\\[ \t]*$/gm, '');
+
+    // 4. Remove layout commands.
     if ($optClean.checked) {
       var cleaned = stripLayout(s);
       s = cleaned.text;
       counts.layout = cleaned.count;
     }
 
-    // 4. Environments.
-    // inline = true: the text after \begin{...} is pulled onto the same line as the label.
-    function begin(name, key, inline) {
-      var pattern = '\\\\begin\\{' + name + '\\}' + (inline ? '\\s*' : '');
-      s = s.replace(new RegExp(pattern, 'g'), function () {
+    // 5. Simple inline-label environments: text after \begin{...} moves onto the
+    //    same line as the label; the \end tag is just removed.
+    function inlineEnv(name, key) {
+      s = s.replace(new RegExp('\\\\begin\\{' + name + '\\}\\s*', 'g'), function () {
         counts[key]++;
-        if (inline && rules[key] !== '') return rules[key] + ' ';
-        return rules[key];
+        return rules[key] !== '' ? rules[key] + ' ' : '';
       });
+      s = s.replace(new RegExp('[ \\t]*\\\\end\\{' + name + '\\}[ \\t]*\\n?', 'g'), '');
     }
-    function end(name, val) {
-      if (val === '') {
-        // Remove the tag and the line break that followed it.
-        s = s.replace(new RegExp('[ \\t]*\\\\end\\{' + name + '\\}[ \\t]*\\n?', 'g'), '');
-      } else {
-        s = s.replace(new RegExp('\\\\end\\{' + name + '\\}', 'g'), function () { return val; });
-      }
-    }
-    begin('claim', 'claim', true);    end('claim', rules.claimEnd);
-    begin('remark', 'remark', true);  end('remark', rules.remarkEnd);
-    begin('proof', 'proof', false);
+    inlineEnv('remark', 'remark');
+    inlineEnv('motivation', 'motivation');
+    inlineEnv('idea', 'idea');
 
-    // \end{proof}: the black square goes at the end of the last line of the proof
-    // (on its own line only if the proof ends with an asy diagram),
-    // then the separator line goes on a new line after it.
+    // 6. Claim: dashed line above it, label inline with the claim text.
+    s = s.replace(/\\begin\{claim\}\s*/g, function () {
+      counts.claim++;
+      var prefix = rules.sepLine ? rules.sepLine + '\n' : '';
+      return prefix + (rules.claim !== '' ? rules.claim + ' ' : '');
+    });
+    if (rules.claimEnd === '') {
+      s = s.replace(/[ \t]*\\end\{claim\}[ \t]*\n?/g, '');
+    } else {
+      s = s.replace(/\\end\{claim\}/g, function () { return rules.claimEnd; });
+    }
+
+    // 7. Proof: label on its own line; the black square goes at the end of the
+    //    last line of the proof, then the dashed line goes on a new line after it
+    //    (on its own line only if the proof ends with an asy diagram).
+    s = s.replace(/\\begin\{proof\}\s*/g, function () {
+      counts.proof++;
+      return rules.proof !== '' ? rules.proof + '\n' : '';
+    });
     s = s.replace(/(\u0000ASY\d+\u0000)?\s*\\end\{proof\}[ \t]*/g, function (_, ph) {
       var bs = rules.proofEnd;
-      var sep = rules.proofSep;
-      if (bs) return (ph ? ph + '\n' : ' ') + bs + (sep ? '\n' + sep : '');
-      return (ph || '') + (sep ? '\n' + sep : '');
+      var sep = rules.sepLine;
+      var out = ph || '';
+      if (bs) out += (ph ? '\n' : ' ') + bs;
+      if (sep) out += '\n' + sep;
+      return out;
     });
 
-    // 5. Lists: itemize / enumerate -> [list] ... [*] ... [/list]
+    // 8. If a proof's dashed line ends up right next to the next claim's dashed
+    //    line (back-to-back claims), collapse the pair into a single line.
+    if (rules.sepLine) {
+      var sepEsc = escapeRegExp(rules.sepLine);
+      var dupRe = new RegExp('(' + sepEsc + ')(?:[ \\t]*\\n\\s*' + sepEsc + '[ \\t]*)+', 'g');
+      s = s.replace(dupRe, '$1');
+    }
+
+    // 9. Lists: itemize / enumerate -> [list] ... [*] ... [/list]
     if ($optList.checked) {
       // drop indentation in front of list tags so each tag starts its line
       s = s.replace(/^[ \t]+(?=\\(?:item(?![a-zA-Z])|begin\{(?:itemize|enumerate)\}|end\{(?:itemize|enumerate)\}))/gm, '');
@@ -342,14 +385,17 @@ dot("$A$", A, SW); dot("$B$", B, SE); dot("$C$", C, N);
       s = s.replace(/\\item(?![a-zA-Z])\s*/g, function () { return '[*] '; });
     }
 
-    // 6. Optional text styling.
+    // 10. Optional text styling.
     if ($optText.checked) {
       s = s.replace(/\\textbf\{([^{}]*)\}/g, '[b]$1[/b]');
       s = s.replace(/\\(?:textit|emph)\{([^{}]*)\}/g, '[i]$1[/i]');
     }
 
-    // 7. Restore asy blocks.
+    // 11. Restore asy blocks.
     s = s.replace(/\u0000ASY(\d+)\u0000/g, function (_, i) { return blocks[+i]; });
+
+    // 12. Tidy up: collapse runs of 3+ blank lines left behind by removed tags.
+    s = s.replace(/\n{3,}/g, '\n\n');
 
     return { text: s.replace(/^\s+|\s+$/g, ''), counts: counts };
   }
@@ -365,6 +411,9 @@ dot("$A$", A, SW); dot("$B$", B, SE); dot("$C$", C, N);
       if (/^\[asy\]/.test(p)) return '<code class="asy">' + esc(p) + '</code>';
       var h = esc(p);
       h = h.replace(/\[color=red\]([\s\S]*?)\[\/color\]/g, '<span class="red">$1</span>');
+      h = h.replace(/\[color=green\]([\s\S]*?)\[\/color\]/g, '<span class="green">$1</span>');
+      h = h.replace(/\[color=blue\]([\s\S]*?)\[\/color\]/g, '<span class="blue">$1</span>');
+      h = h.replace(/\[color=orange\]([\s\S]*?)\[\/color\]/g, '<span class="orange">$1</span>');
       h = h.replace(/\[b\]([\s\S]*?)\[\/b\]/g, '<b>$1</b>');
       h = h.replace(/\[i\]([\s\S]*?)\[\/i\]/g, '<i>$1</i>');
       return h;
@@ -379,7 +428,7 @@ dot("$A$", A, SW); dot("$B$", B, SE); dot("$C$", C, N);
     $out.value = res.text;
     renderPreview(res.text);
     var c = res.counts;
-    var total = c.claim + c.proof + c.remark + c.asy + c.list + c.layout;
+    var total = c.claim + c.proof + c.remark + c.motivation + c.idea + c.asy + c.list + c.layout;
     if (!$in.value.trim()) {
       $status.textContent = '';
       $status.className = 'status';
@@ -391,6 +440,8 @@ dot("$A$", A, SW); dot("$B$", B, SE); dot("$C$", C, N);
       if (c.claim) bits.push(plural(c.claim, 'claim'));
       if (c.proof) bits.push(plural(c.proof, 'proof'));
       if (c.remark) bits.push(plural(c.remark, 'remark'));
+      if (c.motivation) bits.push(plural(c.motivation, 'motivation'));
+      if (c.idea) bits.push(plural(c.idea, 'idea'));
       if (c.asy) bits.push(plural(c.asy, 'asy block'));
       if (c.list) bits.push(plural(c.list, 'list'));
       var msg = bits.length ? 'Converted ' + bits.join(', ') : '';
